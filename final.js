@@ -1,119 +1,97 @@
+const readline = require('readline');
+const debug = require('./debug');
+const { iniciarBrowser, abrirBuscaMaps, fecharBrowser } = require('./inicio/browser');
+const { capturarEmpresas } = require('./meio/capturarEmpresas');
+const { selecionarEmpresa } = require('./meio/acoes');
+const { extrairDados } = require('./fim/extracaodados');
+const { limparDados } = require('./fim/limpeza');
 
-const { firefox } = require('playwright');
+async function scrapeGoogleMapsBruto(termo, indice = null) {
+    debug.fluxo('inicio', 'final.js', 'iniciando extracao completa');
 
-async function scrapeGoogleMapsCompleto(termo) {
-    console.clear();
-    console.log('====================================');
-    console.log(' GOOGLE MAPS - DADOS + FOTOS RESUMO');
-    console.log('====================================\n');
-
-    const browser = await firefox.launch({ headless: true });
-    const page = await browser.newPage();
-    await page.setExtraHTTPHeaders({ 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' });
+    let browser = null;
 
     try {
-        const url = `https://www.google.com/maps/search/${encodeURIComponent(termo)}`;
-        await page.goto(url, { waitUntil: 'domcontentloaded' });
-        await page.waitForTimeout(4000);
+        const sessao = await iniciarBrowser({ headless: false });
+        browser = sessao.browser;
+        const { page } = sessao;
 
-        // --- PASSO 1: DETECÇÃO E SINCRONIZAÇÃO ---
-        const isPainelDireto = await page.isVisible('h1.DUwDvf');
-        if (isPainelDireto) {
-            await page.click('button#searchbox-searchbutton, button[aria-label="Pesquisar"]');
-        } else {
-            await page.click('.m6QErb.DxyBCb.kA9KIf.dS8AEf.XiKgde.ecceSd a.hfpxzc');
-        }
+        await abrirBuscaMaps(page, termo);
 
-        console.log('[INFO] Sincronizando e carregando dados (Aguardando 8s)...');
-        await page.waitForTimeout(8000);
+        debug.fluxo('meio', 'final.js', 'executando acoes no navegador');
+        await selecionarEmpresa(page, indice);
 
-        // --- PASSO 2: EXTRAÇÃO DOS DADOS PRINCIPAIS ---
-        const dadosPrincipais = await page.evaluate(() => {
-            const notaContainer = document.querySelector('.fontDisplayLarge')?.parentElement?.innerText || "";
-            let total = null;
-            if (notaContainer && notaContainer.includes('avalia')) {
-                const found = notaContainer.split('\n').find(p => /\d/.test(p) && p.toLowerCase().includes('avalia')) || notaContainer;
-                const digits = found?.replace(/[^0-9]/g, '') || null;
-                total = digits ? parseInt(digits, 10) : null;
-            }
+        debug.fluxo('fim', 'final.js', 'coletando dados extraidos');
+        const dadosBrutos = await extrairDados(page);
+        const resultado = limparDados(dadosBrutos);
 
-            return {
-                estabelecimento: document.querySelector('h1.DUwDvf')?.innerText || "Não encontrado",
-                nota: document.querySelector('.fontDisplayLarge')?.innerText || "S/N",
-                totalAvaliacoes: total,
-                endereco: document.querySelector('button[data-item-id="address"]')?.innerText?.replace(/[]/g, '').trim(),
-                telefone: document.querySelector('button[data-item-id^="phone"]')?.innerText?.replace(/[]/g, '').trim()
-            };
-        });
-
-        const imgElement = await page.$('button.aoRNLd img, button[jsaction*="heroHeaderImage"] img');
-        let fotoOriginal = null;
-        if (imgElement) {
-            fotoOriginal = await imgElement.evaluate(node => node.src);
-            if (fotoOriginal) {
-                fotoOriginal = fotoOriginal.split('=')[0];
-            }
-        }
-
-        const linkPagina = page.url();
-
-        // --- PASSO 3: EXTRAÇÃO DOS RESUMOS (FOTO + COMENTÁRIO) ---
-        // Faz uma rolagem leve para garantir que os resumos e fotos carreguem
-        await page.evaluate(() => {
-            const painel = document.querySelector('.m6QErb.WNBkOb.XiKgde');
-            if (painel) painel.scrollTop = 800;
-        });
-        await page.waitForTimeout(2000);
-
-        const resumos = await page.evaluate(() => {
-            const cards = document.querySelectorAll('.tBizfc');
-            const listaResumos = [];
-
-            cards.forEach(card => {
-                const anchor = card.querySelector('a.B8AOT');
-                if (!anchor) return;
-
-                // Extrai a URL da imagem de perfil do autor
-                const style = anchor.getAttribute('style') || "";
-                const match = style.match(/url\(["']?([^"']+)["']?\)/);
-                
-                if (match && match[1]) {
-                    let imgUrl = match[1].replace(/["']/g, '');
-                    if (imgUrl.startsWith('//')) imgUrl = 'https:' + imgUrl;
-                    // Limpa e melhora a resolução da imagem
-                    const fotoLink = imgUrl.replace(/=w\d+-h\d+/, '=s150');
-
-                    listaResumos.push({
-                        foto: fotoLink,
-                        comentario: card.innerText.trim().replace(/\n/g, ' ')
-                    });
-                }
-            });
-
-            return listaResumos;
-        });
-
-        // --- RESULTADO FINAL ---
-        const resultadoFinal = {
-            ...dadosPrincipais,
-            foto_original: fotoOriginal,
-            link_maps: linkPagina,
-            resumo_com_foto: resumos
-        };
-
-        console.log('\n====================================');
-        console.log(JSON.stringify(resultadoFinal, null, 2));
-        console.log('====================================');
-
-        // Retorna o resultado para quem chamar a função
-        return resultadoFinal;
-
-    } catch (err) {
-        console.error("\n[ERRO]:", err.message);
-        return { erro: err.message };
+        debug.resultado('RESULTADO FINAL', resultado);
+        return resultado;
+    } catch (error) {
+        debug.erro('final', 'final.js', error);
+        return { erro: error.message };
     } finally {
-        await browser.close();
+        await fecharBrowser(browser);
     }
 }
 
-module.exports = scrapeGoogleMapsCompleto;
+async function listarEmpresas(termo) {
+    debug.fluxo('inicio', 'final.js', 'iniciando listagem de empresas');
+
+    let browser = null;
+
+    try {
+        const sessao = await iniciarBrowser({ headless: true });
+        browser = sessao.browser;
+        const { page } = sessao;
+
+        await abrirBuscaMaps(page, termo);
+
+        debug.fluxo('meio', 'final.js', 'capturando empresas para selecao');
+        const empresas = await capturarEmpresas(page);
+
+        debug.resultado('EMPRESAS ENCONTRADAS', empresas);
+        return empresas;
+    } catch (error) {
+        debug.erro('meio', 'final.js', error);
+        return { erro: error.message };
+    } finally {
+        await fecharBrowser(browser);
+    }
+}
+
+function question(query) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    return new Promise((resolve) => {
+        rl.question(query, (ans) => {
+            rl.close();
+            resolve(ans);
+        });
+    });
+}
+
+async function scrapeGoogleMapsInterativo(termo) {
+    const empresas = await listarEmpresas(termo);
+    let indice = 0;
+
+    if (Array.isArray(empresas) && empresas.length > 1) {
+        empresas.forEach((empresa) => {
+            console.log(`${empresa.id + 1}. ${empresa.nome} - ${empresa.endereco}`);
+        });
+
+        const resposta = await question('\nDigite o numero da empresa correta: ');
+        indice = parseInt(resposta, 10) - 1;
+    }
+
+    return scrapeGoogleMapsBruto(termo, Number.isInteger(indice) ? indice : 0);
+}
+
+module.exports = {
+    scrapeGoogleMapsBruto,
+    scrapeGoogleMapsInterativo,
+    listarEmpresas
+};
