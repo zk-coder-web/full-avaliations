@@ -1,15 +1,10 @@
 {
   "name": "full-avaliations",
   "version": "1.0.0",
-  "description": "",
   "main": "final.js",
   "scripts": {
-    "start": "node server.js",
-    "postinstall": "npx playwright install chromium --with-deps"
+    "start": "node server.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "engines": {
     "node": "20.x"
