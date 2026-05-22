@@ -12,7 +12,7 @@ async function scrapeGoogleMapsBruto(termo, indice = null) {
     let browser = null;
 
     try {
-        const sessao = await iniciarBrowser({ headless: false });
+        const sessao = await iniciarBrowser({ headless: true });
         browser = sessao.browser;
         const { page } = sessao;
 
