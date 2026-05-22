@@ -1,4 +1,4 @@
-const { firefox } = require('playwright');
+const { chromium} = require('playwright');
 const debug = require('../debug');
 
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36';
@@ -6,7 +6,7 @@ const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 async function iniciarBrowser({ headless = false } = {}) {
     debug.fluxo('inicio', 'inicio/browser.js', `iniciando browser headless=${headless}`);
 
-    const browser = await firefox.launch({ headless });
+    const browser = await chromium.launch({ headless });
     const page = await browser.newPage();
 
     await page.setExtraHTTPHeaders({
