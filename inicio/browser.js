@@ -19,7 +19,8 @@ async function iniciarBrowser({ headless = false } = {}) {
 async function abrirBuscaMaps(page, termo) {
     debug.fluxo('inicio', 'inicio/browser.js', `abrindo Google Maps para "${termo}"`);
 
-    const url = `https://www.google.com/maps/search/${encodeURIComponent(termo)}`;
+    const termoComLocal = `${termo} Brasil`;
+    const url = `https://www.google.com/maps/search/${encodeURIComponent(termoComLocal)}?hl=pt-BR&gl=br`;
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(4000);
 }
