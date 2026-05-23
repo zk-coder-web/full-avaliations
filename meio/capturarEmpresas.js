@@ -1,4 +1,5 @@
 const debug = require('../debug');
+const path = require('path');
 
 async function capturarEmpresas(page) {
     debug.fluxo('meio', 'meio/capturarEmpresas.js', 'capturando empresas da lista');
@@ -22,6 +23,18 @@ async function capturarEmpresas(page) {
     });
 
     debug.fluxo('meio', 'meio/capturarEmpresas.js', `${empresas.length} empresas encontradas`);
+
+    if (empresas.length === 0) {
+        const screenshotPath = path.join(__dirname, '..', 'public', 'screen.png');
+
+        try {
+            await page.screenshot({ path: screenshotPath, fullPage: true });
+            debug.aviso('meio', 'meio/capturarEmpresas.js', `nenhuma empresa encontrada; screenshot salvo em ${screenshotPath}`);
+        } catch (error) {
+            debug.erro('meio', 'meio/capturarEmpresas.js', error);
+        }
+    }
+
     return empresas;
 }
 
