@@ -56,6 +56,37 @@ app.post('/api/listar', async (req, res) => {
     }
 });
 
+app.get('/api/listar', async (req, res) => {
+    const rota = 'GET /api/listar';
+
+    try {
+        const termo = req.query.termo;
+        debug.fluxo('server', 'server.js', `${rota} recebido termo="${termo || ''}"`);
+
+        if (!termo) {
+            return termoObrigatorio(res, rota, 'Parametro termo e obrigatorio');
+        }
+
+        debug.fluxo('server', 'server.js', `${rota} iniciando listagem de empresas`);
+        const result = await listarEmpresas(termo);
+
+        if (result && result.erro) {
+            return responderErroDoFluxo(res, rota, result);
+        }
+
+        if (!Array.isArray(result) || result.length === 0) {
+            debug.aviso('server', 'server.js', `${rota} sem empresas encontradas termo="${termo}"`);
+            return res.status(404).json({ erro: 'Nenhuma empresa encontrada' });
+        }
+
+        debug.fluxo('server', 'server.js', `${rota} encontrou ${result.length} empresas termo="${termo}"`);
+        return res.json(result);
+    } catch (err) {
+        debug.erro('server', 'server.js', err);
+        return res.status(500).json({ erro: err.message });
+    }
+});
+
 app.post('/api/scrape', async (req, res) => {
     const rota = 'POST /api/scrape';
 
