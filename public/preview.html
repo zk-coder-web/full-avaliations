@@ -99,9 +99,8 @@
                     body: JSON.stringify({ termo })
                 });
 
-                if (!response.ok) throw new Error('Erro ao listar empresas');
-
                 const empresas = await response.json();
+                if (!response.ok) throw new Error(empresas.erro || 'Erro ao listar empresas');
                 if (empresas.erro) throw new Error(empresas.erro);
                 if (!Array.isArray(empresas) || empresas.length === 0) {
                     status.textContent = 'Nenhuma empresa encontrada';
@@ -155,9 +154,8 @@
                     body: JSON.stringify({ termo, indice })
                 });
 
-                if (!response.ok) throw new Error('Erro na requisicao');
-
                 const dados = await response.json();
+                if (!response.ok) throw new Error(dados.erro || 'Erro na requisicao');
                 if (dados.erro) throw new Error(dados.erro);
 
                 status.textContent = '';

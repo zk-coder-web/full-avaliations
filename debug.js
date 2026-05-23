@@ -11,6 +11,10 @@ function erro(etapa, arquivo, error) {
     console.error(`[${agora()}] erro ${etapa}: ${arquivo} - ${error.message}`);
 }
 
+function aviso(etapa, arquivo, mensagem = '') {
+    console.warn(`[${agora()}] aviso ${etapa}: ${arquivo} - ${mensagem}`);
+}
+
 function resultado(titulo, dados) {
     console.log('\n====================================');
     console.log(titulo);
@@ -22,5 +26,6 @@ function resultado(titulo, dados) {
 module.exports = {
     fluxo,
     erro,
+    aviso,
     resultado
 };
